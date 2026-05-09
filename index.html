@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Snake Image Unblur</title>
+    <title>Snake Multimedia Unblur</title>
     
     <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
     <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
 
     <style>
         body { 
-            background: #1a1a1a; 
-            color: white; 
-            font-family: sans-serif; 
+            background: #0f0f0f; 
+            color: #e0e0e0; 
+            font-family: 'Segoe UI', sans-serif; 
             display: flex; 
             flex-direction: column; 
             align-items: center; 
@@ -21,70 +21,68 @@
             margin: 0;
         }
 
-        /* Povinné tlačidlo podľa zadania */
+        /* POVINNÉ: Back button podľa zadania */
         .back-btn { 
             position: absolute; 
             top: 20px; 
             left: 20px; 
-            color: #00ffff; 
+            color: #00ffcc; 
             text-decoration: none; 
-            border: 1px solid #00ffff; 
-            padding: 8px 15px; 
-            border-radius: 5px;
+            border: 2px solid #00ffcc; 
+            padding: 8px 16px; 
+            border-radius: 4px;
             font-weight: bold;
+            transition: 0.3s;
         }
-        .back-btn:hover { background: rgba(0, 255, 255, 0.1); }
+        .back-btn:hover { background: rgba(0, 255, 204, 0.2); }
 
-        h1 { margin-bottom: 10px; }
+        h1 { margin-bottom: 5px; color: #00ffcc; }
+        
+        .controls { margin-bottom: 20px; text-align: center; background: #1a1a1a; padding: 15px; border-radius: 8px; }
 
-        /* Kontajner, kde je obrázok a hra na sebe */
         #game-container { 
             position: relative; 
             width: 400px; 
             height: 400px; 
-            border: 5px solid #333;
+            border: 4px solid #333;
             background: #000;
-            overflow: hidden;
         }
 
-        /* Obrázok na pozadí (Layer 1) */
+        /* Obrázok na pozadí */
         #image-overlay { 
             position: absolute; 
-            top: 0; 
-            left: 0; 
-            width: 100%; 
-            height: 100%; 
+            top: 0; left: 0; 
+            width: 100%; height: 100%; 
             object-fit: cover; 
             z-index: 1; 
         }
 
-        /* Canvas pre hadíka (Layer 2 - priehľadný) */
+        /* Priehľadný Canvas pre hru */
         #snakeCanvas { 
             position: absolute; 
-            top: 0; 
-            left: 0; 
+            top: 0; left: 0; 
             z-index: 2; 
-            background: transparent; 
         }
 
-        #status { margin-top: 15px; font-size: 1.1em; color: #ccc; }
-        input[type="file"] { margin: 20px 0; }
+        #status { margin-top: 10px; font-weight: bold; height: 20px; }
     </style>
 </head>
 <body>
 
     <a href="/" class="back-btn">← Späť na portál</a>
 
-    <h1>Snake Image Unblur</h1>
+    <h1>Snake Unblur</h1>
     
-    <input type="file" id="upload" accept="image/*">
+    <div class="controls">
+        <label for="upload">Vyber obrázok:</label><br><br>
+        <input type="file" id="upload" accept="image/*">
+        <div id="status">Nahraj obrázok a pohni hadíkom (šípkami)</div>
+    </div>
     
     <div id="game-container">
         <img id="image-overlay" src="" alt="">
         <canvas id="snakeCanvas" width="400" height="400"></canvas>
     </div>
-
-    <div id="status">Nahraj obrázok, klikni na plochu a šípkami začni hrať!</div>
 
     <script type="py" src="./main.py" config='{"packages": ["Pillow"]}'></script>
 
