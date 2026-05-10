@@ -6,7 +6,7 @@ import random
 from pyodide.ffi import create_proxy
 from PIL import Image, ImageFilter
 
-# --- KONFIGURÁCIA A PREMENNÉ ---
+# --- KONFIGURÁCIA A GLOBÁLNE PREMENNÉ ---
 original_image_data = None
 current_blur = 50
 score = 0
@@ -16,8 +16,9 @@ game_running = False
 canvas = js.document.getElementById("snakeCanvas")
 ctx = canvas.getContext("2d")
 TILE_SIZE = 20
-grid_size = 20 # 400 / 20
+grid_size = 20 
 
+# Herné objekty
 snake = [{"x": 10, "y": 10}]
 direction = {"x": 1, "y": 0}
 food = {"x": 15, "y": 15}
@@ -31,12 +32,10 @@ lowpass_filter = None
 def update_image_display(blur_radius):
     if original_image_data is None: return
     
-    # Pillow spracovanie
     img = original_image_data
     if blur_radius > 0:
         img = img.filter(ImageFilter.GaussianBlur(radius=blur_radius))
     
-    # Prevod do formátu pre HTML
     buffered = io.BytesIO()
     img.save(buffered, format="PNG")
     img_base64 = base64.b64encode(buffered.getvalue()).decode()
@@ -47,7 +46,6 @@ async def handle_upload(event):
     file = event.target.files.item(0)
     if not file: return
 
-    # Načítanie súboru
     array_buffer = await file.arrayBuffer()
     bytes_data = array_buffer.to_py()
     original_image_data = Image.open(io.BytesIO(bytes_data)).convert("RGB").resize((400, 400))
@@ -66,7 +64,10 @@ def init_audio():
         source = audio_ctx.createMediaElementSource(bg_music)
         lowpass_filter = audio_ctx.createBiquadFilter()
         lowpass_filter.type = "lowpass"
-        lowpass_filter.frequency.value = 300 # Tlmený štart
+        
+        # EXTRÉMNE ROZOSTRENIE: Nízka frekvencia a vysoká resonance (Q)
+        lowpass_filter.frequency.value = 150 
+        lowpass_filter.Q.value = 10 
         
         source.connect(lowpass_filter)
         lowpass_filter.connect(audio_ctx.destination)
@@ -76,17 +77,25 @@ def init_audio():
 
 def update_audio_clarity(s):
     if lowpass_filter:
-        # Zvuk sa "vyostruje" zvyšovaním frekvencie
-        new_freq = min(20000, 300 + (s * 1500))
+        # Plynulé vyostrovanie zvuku so skóre
+        new_freq = min(20000, 150 + (s * 1500))
         lowpass_filter.frequency.setTargetAtTime(new_freq, audio_ctx.currentTime, 0.2)
 
-# --- JADRO HRY ---
+# --- LOGIKA HRY A REŠTART ---
+def reset_game_state():
+    global snake, direction, score, current_blur
+    snake = [{"x": 10, "y": 10}]
+    direction = {"x": 1, "y": 0}
+    score = 0
+    current_blur = 50
+    update_image_display(current_blur)
+    update_audio_clarity(0)
+
 async def game_loop():
     global score, current_blur, game_running
     if not audio_ctx: init_audio()
 
     while game_running:
-        # Nová pozícia hlavy
         new_head = {
             "x": snake[0]["x"] + direction["x"],
             "y": snake[0]["y"] + direction["y"]
@@ -97,26 +106,28 @@ async def game_loop():
             new_head["y"] < 0 or new_head["y"] >= grid_size or 
             new_head in snake):
             
-            game_running = False
+            # Zvuk smrti a krátka pauza
             js.Audio.new("gameover.wav").play()
-            if bg_music: bg_music.pause()
-            js.alert(f"Game Over! Skóre: {score}")
-            break
+            await asyncio.sleep(1.2)
+            
+            # Automatický reštart 
+            reset_game_state()
+            continue
 
         snake.insert(0, new_head)
 
-        # JEDENIE
+        # JEDENIE JABLKA
         if new_head["x"] == food["x"] and new_head["y"] == food["y"]:
             score += 1
+            # Vyostrovanie obrazu a zvuku 
             current_blur = max(0, 50 - (score * 5))
             update_image_display(current_blur)
             update_audio_clarity(score)
-            # Spawn nového jedla
             food["x"], food["y"] = random.randint(0, 19), random.randint(0, 19)
         else:
             snake.pop()
 
-        # VYKRESLENIE
+        # VYKRESLENIE NA CANVAS 
         ctx.clearRect(0, 0, 400, 400)
         
         # Jedlo
@@ -138,10 +149,11 @@ def on_keydown(event):
     elif key == "ArrowLeft" and direction["x"] == 0: direction = {"x": -1, "y": 0}
     elif key == "ArrowRight" and direction["x"] == 0: direction = {"x": 1, "y": 0}
     
+    # Štart hry po stlačení šípky, ak je nahraný obrázok 
     if not game_running and original_image_data:
         game_running = True
         asyncio.ensure_future(game_loop())
 
-# Event Listenery
+# EVENT LISTENERY 
 js.document.getElementById("upload").addEventListener("change", create_proxy(handle_upload))
 js.document.addEventListener("keydown", create_proxy(on_keydown))
