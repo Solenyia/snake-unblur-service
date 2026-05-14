@@ -3,85 +3,136 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Snake Multimedia Unblur</title>
+    <title>SNAKE_DECRYPTOR_OS_FINAL</title>
     
     <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
     <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
 
     <style>
-        body { 
-            background: #0f0f0f; 
-            color: #e0e0e0; 
-            font-family: 'Segoe UI', sans-serif; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center;
-            min-height: 100vh;
-            margin: 0;
+        :root { 
+            --neon: #00ffcc; 
+            --bg: #030303;
+            --noise-opacity: 0.1;
         }
-
-        /* POVINNÉ: Back button podľa zadania */
-        .back-btn { 
-            position: absolute; 
-            top: 20px; 
-            left: 20px; 
-            color: #00ffcc; 
-            text-decoration: none; 
-            border: 2px solid #00ffcc; 
-            padding: 8px 16px; 
-            border-radius: 4px;
-            font-weight: bold;
-            transition: 0.3s;
-        }
-        .back-btn:hover { background: rgba(0, 255, 204, 0.2); }
-
-        h1 { margin-bottom: 5px; color: #00ffcc; }
         
-        .controls { margin-bottom: 20px; text-align: center; background: #1a1a1a; padding: 15px; border-radius: 8px; }
+        body { 
+            background: var(--bg); 
+            color: #e0e0e0; 
+            font-family: 'Courier New', monospace; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            min-height: 100vh; margin: 0; overflow: hidden; position: relative;
+        }
 
+        /* 3D Mriežka na pozadí */
+        body::before {
+            content: ""; position: absolute; width: 200%; height: 200%; top: -50%; left: -50%;
+            background-image: 
+                linear-gradient(to right, rgba(0, 255, 204, 0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(0, 255, 204, 0.05) 1px, transparent 1px);
+            background-size: 80px 80px;
+            transform: perspective(600px) rotateX(45deg);
+            animation: grid-move 30s linear infinite; z-index: -2;
+        }
+
+        @keyframes grid-move {
+            from { transform: perspective(600px) rotateX(45deg) translateY(0); }
+            to { transform: perspective(600px) rotateX(45deg) translateY(80px); }
+        }
+
+        /* Rohové logy */
+        .log-panel {
+            position: absolute; font-size: 0.65rem; color: var(--neon);
+            opacity: 0.5; padding: 15px; border: 1px solid rgba(0, 255, 204, 0.2);
+            background: rgba(0,0,0,0.5); backdrop-filter: blur(2px);
+        }
+        .top-left { top: 20px; left: 20px; width: 220px; }
+        .bottom-left { bottom: 20px; left: 20px; width: 220px; }
+
+        /* Hlavný kontajner s efektmi */
         #game-container { 
-            position: relative; 
-            width: 400px; 
-            height: 400px; 
-            border: 4px solid #333;
-            background: #000;
+            position: relative; width: 400px; height: 400px; 
+            border: 1px solid var(--neon); background: #000; overflow: hidden;
+            box-shadow: 0 0 40px rgba(0, 255, 204, 0.1);
         }
 
-        /* Obrázok na pozadí */
-        #image-overlay { 
-            position: absolute; 
-            top: 0; left: 0; 
-            width: 100%; height: 100%; 
-            object-fit: cover; 
-            z-index: 1; 
+        /* Vodorovný skener */
+        .scanner-line {
+            position: absolute; top: 0; left: 0; width: 100%; height: 2px;
+            background: var(--neon); opacity: 0.3; box-shadow: 0 0 15px var(--neon);
+            z-index: 10; animation: scan 4s linear infinite;
+        }
+        @keyframes scan {
+            0% { top: 0; } 100% { top: 400px; }
         }
 
-        /* Priehľadný Canvas pre hru */
-        #snakeCanvas { 
-            position: absolute; 
-            top: 0; left: 0; 
-            z-index: 2; 
+        /* Štýlový File Input */
+        .upload-btn {
+            border: 1px solid var(--neon); padding: 12px 24px;
+            color: var(--neon); cursor: pointer; position: relative;
+            background: transparent; transition: 0.3s; overflow: hidden;
+            text-transform: uppercase; letter-spacing: 2px; font-weight: bold;
+        }
+        .upload-btn:hover { background: var(--neon); color: #000; box-shadow: 0 0 30px var(--neon); }
+        .upload-btn input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+
+        .stats-bar {
+            width: 400px; display: flex; justify-content: space-between;
+            margin-top: 15px; font-size: 0.8rem; color: var(--neon);
+            border-bottom: 1px solid rgba(0, 255, 204, 0.3); padding-bottom: 5px;
         }
 
-        #status { margin-top: 10px; font-weight: bold; height: 20px; }
+        .theme-panel {
+            position: absolute; right: 20px; top: 20px; display: flex; flex-direction: column; gap: 10px;
+        }
+        .t-dot { width: 12px; height: 12px; border: 1px solid #fff; cursor: pointer; }
+
+        /* CRT Filter cez všetko */
+        .vignette {
+            position: fixed; inset: 0; pointer-events: none;
+            background: radial-gradient(circle, transparent 50%, rgba(0,0,0,0.8) 150%);
+            z-index: 100;
+        }
     </style>
 </head>
 <body>
 
-    <a href="/" class="back-btn">← Späť na portál</a>
+    <div class="vignette"></div>
 
-    <h1>Snake Unblur</h1>
-    
-    <div class="controls">
-        <label for="upload">Vyber obrázok:</label><br><br>
-        <input type="file" id="upload" accept="image/*">
-        <div id="status">Nahraj obrázok a pohni hadíkom (šípkami)</div>
+    <div class="log-panel top-left">
+        > SEARCHING_FOR_UPLOADS...<br>
+        > PROTOCOL: TCP/IP_SECURE<br>
+        > STATUS: ENCRYPTED_TUNNEL
+    </div>
+
+    <div class="log-panel bottom-left">
+        > DECRYPT_ENGINE_V3<br>
+        > KERNEL: ACTIVE<br>
+        > MEMORY: 128MB/256MB
+    </div>
+
+    <div class="theme-panel">
+        <div class="t-dot" style="background:#00ffcc" onclick="document.documentElement.style.setProperty('--neon', '#00ffcc')"></div>
+        <div class="t-dot" style="background:#ff007f" onclick="document.documentElement.style.setProperty('--neon', '#ff007f')"></div>
+        <div class="t-dot" style="background:#ffff00" onclick="document.documentElement.style.setProperty('--neon', '#ffff00')"></div>
+    </div>
+
+    <div style="margin-bottom: 30px; z-index: 20;">
+        <div class="upload-btn">
+            [ UPLOAD_IMAGE ]
+            <input type="file" id="upload">
+        </div>
+        <div id="status" style="margin-top: 10px; font-size: 0.7rem; text-align: center; color: #666;">AWAITING_INPUT...</div>
     </div>
     
     <div id="game-container">
-        <img id="image-overlay" src="" alt="">
-        <canvas id="snakeCanvas" width="400" height="400"></canvas>
+        <div class="scanner-line"></div>
+        <img id="image-overlay" src="" style="position: absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity: 0.8;">
+        <canvas id="snakeCanvas" width="400" height="400" style="position: absolute; inset:0;"></canvas>
+    </div>
+
+    <div class="stats-bar">
+        <span>SCORE: <span id="score-val">00</span></span>
+        <span>INTEGRITY: <span id="blur-val">0%</span></span>
     </div>
 
     <script type="py" src="./main.py" config='{"packages": ["Pillow"]}'></script>
